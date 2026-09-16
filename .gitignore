@@ -1,2 +1,4 @@
 node_modules/
 .DS_Store
+# Generated at build/start by scripts/export-character.mjs
+public/models/

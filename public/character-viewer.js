@@ -1,0 +1,18 @@
+import * as T from '/vendor/three.module.js';
+import {createHiker,poseHiker} from './character.js';
+const canvas=document.querySelector('#viewer'),renderer=new T.WebGLRenderer({canvas,antialias:true});
+renderer.setPixelRatio(Math.min(devicePixelRatio,2));renderer.setClearColor(0xbcc8cc);renderer.shadowMap.enabled=true;renderer.shadowMap.type=T.PCFSoftShadowMap;
+const scene=new T.Scene(),camera=new T.PerspectiveCamera(36,innerWidth/innerHeight,.05,40);
+scene.add(new T.HemisphereLight(0xeaf5ff,0x596875,2.3));
+const key=new T.DirectionalLight(0xfff3dd,3);key.position.set(-3,5,-4);key.castShadow=true;key.shadow.mapSize.set(2048,2048);key.shadow.camera.left=-3;key.shadow.camera.right=3;key.shadow.camera.top=3;key.shadow.camera.bottom=-3;key.shadow.normalBias=.025;scene.add(key);
+const rim=new T.DirectionalLight(0xb9d5ee,1.2);rim.position.set(3,3,3);scene.add(rim);
+const floor=new T.Mesh(new T.PlaneGeometry(200,200),new T.MeshStandardMaterial({color:0xbcc8cc,roughness:1}));floor.rotation.x=-Math.PI/2;floor.position.y=-.01;floor.receiveShadow=true;scene.add(floor);
+const actor=createHiker(T);actor.userData.model.castShadow=true;scene.add(actor);
+let motion='idle',yaw=-.35,pitch=.06,dist=3.6,drag=false,x=0,y=0;
+for(const b of document.querySelectorAll('button[data-motion]'))b.onclick=()=>{motion=b.dataset.motion;for(const other of document.querySelectorAll('button[data-motion]'))other.setAttribute('aria-pressed',String(other===b));};
+canvas.onpointerdown=e=>{drag=true;x=e.clientX;y=e.clientY;canvas.setPointerCapture(e.pointerId);};canvas.onpointerup=()=>drag=false;canvas.onpointercancel=()=>drag=false;
+canvas.onpointermove=e=>{if(!drag)return;yaw-=(e.clientX-x)*.008;pitch=T.MathUtils.clamp(pitch+(e.clientY-y)*.005,-.3,.8);x=e.clientX;y=e.clientY;};
+canvas.addEventListener('wheel',e=>{e.preventDefault();dist=T.MathUtils.clamp(dist+e.deltaY*.003,2.1,6);},{passive:false});
+function resize(){renderer.setSize(innerWidth,innerHeight,false);camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();}addEventListener('resize',resize);resize();
+document.querySelector('#status').textContent=`${actor.userData.model.geometry.attributes.position.count/3} треугольников · ${actor.userData.model.skeleton.bones.length} костей · 5 анимаций`;
+const clock=new T.Clock();function render(){requestAnimationFrame(render);const dt=Math.min(clock.getDelta(),.05);poseHiker(actor,motion==='run'?5.8:motion==='walk'?2.8:0,dt,{cold:motion==='cold'?1:0,kindle:motion==='kindle'});camera.position.set(Math.sin(yaw)*dist,1.05+Math.sin(pitch)*dist,-Math.cos(yaw)*dist);camera.lookAt(0,1.02,0);renderer.render(scene,camera);}render();
