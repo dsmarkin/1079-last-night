@@ -1,0 +1,4 @@
+import {test} from 'node:test';import assert from 'node:assert/strict';import {SIZE,POIS,P,movement,sample} from '../public/world.js';
+test('camera-relative directions and normalized diagonal',()=>{assert.equal(movement(0,1,0).x,1);assert.ok(Math.abs(movement(0,1,0).z)<1e-12);assert.equal(movement(1,0,0).z,-1);const d=movement(1,1,1);assert.ok(Math.abs(Math.hypot(d.x,d.z)-1)<1e-12);});
+test('all historical points fit DEM bounds and expected separation',()=>{POIS.forEach(p=>assert.ok(Math.abs(p.x)<SIZE/2&&Math.abs(p.z)<SIZE/2));const d=Math.hypot(P.cedar.x-P.tent.x,P.cedar.z-P.tent.z);assert.ok(d>1300&&d<1600);assert.ok(Math.hypot(P.cedar.x-P.ravine.x,P.cedar.z-P.ravine.z)<65);});
+test('DEM sampling respects pixel centres and interpolates without steps',()=>{const a=Float32Array.from({length:65536},(_,i)=>i%256);assert.equal(sample(a,0,0),127.5);assert.equal(sample(a,-SIZE/2,0),0);assert.equal(sample(a,SIZE/2,0),255);});
