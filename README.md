@@ -4,6 +4,8 @@
 
 # 1079: Последняя ночь
 
+> Unity-версия (Unity 6, C#, PhysX, Netcode for GameObjects; сборки Mac/Windows) живёт в [`unity/`](unity/README.md). Ядро правил там — порт этой же логики с теми же тестами.
+
 Browser multiplayer exploration of the Dyatlov incident area. Three.js + Express + Socket.IO.
 
 ## Run
