@@ -1,12 +1,14 @@
+import {EnvironmentSound} from './sound.js';
 import {newRun,tickRun,record,nightTime,outcomes} from './survival.js';
 import * as THREE from '/vendor/three.module.js';
-import {SIZE,POIS,P,creek,sources,movement,sample} from './world.js';
+import {SIZE,POIS,P,CAMP,creek,sources,movement,sample} from './world.js';
+const ambience=new EnvironmentSound();
 const $=s=>document.querySelector(s),canvas=$('#game');
 const renderer=new THREE.WebGLRenderer({canvas,antialias:true});renderer.setPixelRatio(Math.min(devicePixelRatio,1.5));renderer.setClearColor(0xadbcc6);renderer.outputColorSpace=THREE.SRGBColorSpace;
 const scene=new THREE.Scene();scene.fog=new THREE.FogExp2(0xadbcc6,.0013);
 const camera=new THREE.PerspectiveCamera(60,innerWidth/innerHeight,.1,4500);
 scene.add(new THREE.HemisphereLight(0xe2efff,0x586267,2));const sun=new THREE.DirectionalLight(0xffefd7,2.3);sun.position.set(-500,700,-200);scene.add(sun);
-let firstPerson=false,run=null,fireSeconds=0,lightingFire=0,finished=false,autoKindle=false;
+let firstPerson=false,run=null,fireSeconds=0,lightingFire=0,finished=false,autoKindle=false,fireDeadline=0,awaitingFire=false;
 let heights,ready=false,active=false,mapOpen=false,yaw=-1.15,pitch=.32,distance=6,storm=false,paused=false,dragging=false;
 const keys={},velocity=new THREE.Vector2(),players=new Map();
 const mat=(color)=>new THREE.MeshStandardMaterial({color,roughness:.95,flatShading:true});
@@ -33,8 +35,9 @@ me.position.set(P.tent.x+5,hAt(P.tent.x+5,P.tent.z+7),P.tent.z+7);me.visible=tru
 async function load(){try{const img=new Image();img.src='/data/terrain.png';await img.decode();const c=document.createElement('canvas');c.width=c.height=256;const ctx=c.getContext('2d');ctx.drawImage(img,0,0);const d=ctx.getImageData(0,0,256,256).data;heights=new Float32Array(65536);for(let i=0;i<heights.length;i++)heights[i]=d[i*4]*256+d[i*4+1]+d[i*4+2]/256-32768;terrainPatch(0,0,SIZE,384);decorate();drawMaps();$('#loading').hidden=true;}catch(e){$('#loading').textContent='Не удалось загрузить рельеф. Обновите страницу.';console.error(e);}}
 const footprint=new THREE.InstancedMesh(new THREE.PlaneGeometry(.18,.32),new THREE.MeshBasicMaterial({color:0x83949e,transparent:true,opacity:.48,depthWrite:false,polygonOffset:true,polygonOffsetFactor:-2}),800);footprint.count=0;scene.add(footprint);let footIndex=0,walked=0;const stamp=new THREE.Object3D();function step(){const side=footIndex%2?-.14:.14,x=me.position.x+Math.cos(me.rotation.y)*side,z=me.position.z-Math.sin(me.rotation.y)*side;stamp.position.set(x,hAt(x,z)+.04,z);stamp.rotation.set(-Math.PI/2,0,-me.rotation.y);stamp.updateMatrix();footprint.setMatrixAt(footIndex%800,stamp.matrix);footIndex++;footprint.count=Math.min(800,footIndex);footprint.instanceMatrix.needsUpdate=true;footprint.computeBoundingSphere();}
 const flakes=new Float32Array(2400*3);for(let i=0;i<flakes.length;i++)flakes[i]=(rnd()-.5)*60;const snowGeo=new THREE.BufferGeometry();snowGeo.setAttribute('position',new THREE.BufferAttribute(flakes,3));const snowfall=new THREE.Points(snowGeo,new THREE.PointsMaterial({color:0xf6fbff,size:.085,transparent:true,opacity:.75,depthWrite:false}));scene.add(snowfall);
-const socket=io();function join(){socket.emit('join',{room:(run?'N:':'A:')+$('#room').value.slice(0,18),name:$('#name').value,x:me.position.x,z:me.position.z,ry:me.rotation.y});}socket.on('connect',()=>{if(active)join();});socket.on('disconnect',()=>{$('#online').textContent='Нет связи · переподключение';clearPlayers();});function clearPlayers(){for(const g of players.values())scene.remove(g);players.clear();}
+const socket=io();function join(){socket.emit('join',{room:(run?'N:':'A:')+$('#room').value.slice(0,18),name:$('#name').value,x:me.position.x,z:me.position.z,ry:me.rotation.y});}socket.on('connect',()=>{if(active)join();});socket.on('disconnect',()=>{$('#online').textContent='Нет связи · переподключение';clearPlayers();fireDeadline=0;awaitingFire=false;autoKindle=false;});function clearPlayers(){for(const g of players.values())scene.remove(g);players.clear();}
 function remote(p){if(p.id===socket.id)return;let g=players.get(p.id);if(!g){g=avatar(0x688694);g.position.set(p.x,hAt(p.x,p.z),p.z);players.set(p.id,g);}g.userData.target=new THREE.Vector3(p.x,hAt(p.x,p.z),p.z);g.userData.ry=p.ry;return g;}
+socket.on('fire',data=>{if(!run||!Number.isFinite(data?.remaining))return;const wasLit=fireSeconds>0;fireSeconds=Math.max(0,Math.min(90,data.remaining));fireDeadline=performance.now()+fireSeconds*1000;awaitingFire=false;if(!wasLit&&fireSeconds>0)record(run,'В комнате разожжён общий костёр.');});
 socket.on('state',ps=>{clearPlayers();ps.forEach(remote);});socket.on('joined',remote);socket.on('move',remote);socket.on('left',id=>{const g=players.get(id);if(g)scene.remove(g);players.delete(id);});
 function clearKeys(){Object.keys(keys).forEach(k=>delete keys[k]);velocity.set(0,0);}function lock(){try{canvas.requestPointerLock()?.catch(()=>{});}catch{}}
 $('#go').onclick=()=>{if(!ready)return;startRun();active=true;$('#intro').hidden=true;$('#hud').hidden=false;$('#minimap').hidden=false;join();lock();};
@@ -49,13 +52,14 @@ function showPoi(p){$('#poiTitle').textContent=p.label;$('#poiNote').textContent
 function mapPos(el){el.style.left=(me.position.x/SIZE+.5)*100+'%';el.style.top=(me.position.z/SIZE+.5)*100+'%';el.style.transform=`translate(-50%,-50%) rotate(${-me.rotation.y}rad)`;}
 function resize(){renderer.setSize(innerWidth,innerHeight,false);camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();}addEventListener('resize',resize);resize();
 const clock=new THREE.Clock();let send=0,hudTime=0;function loop(){requestAnimationFrame(loop);const dt=Math.min(clock.getDelta(),.05);if(ready){if(active&&!mapOpen&&!paused&&!finished){const f=(keys.KeyW?1:0)-(keys.KeyS?1:0),r=(keys.KeyD?1:0)-(keys.KeyA?1:0),dir=movement(f,r,yaw),speed=keys.ShiftLeft||keys.ShiftRight?5.8:2.8;velocity.lerp(new THREE.Vector2(dir.x*speed,dir.z*speed),1-Math.exp(-12*dt));const nx=THREE.MathUtils.clamp(me.position.x+velocity.x*dt,-SIZE/2+8,SIZE/2-8),nz=THREE.MathUtils.clamp(me.position.z+velocity.y*dt,-SIZE/2+8,SIZE/2-8);walked+=Math.hypot(nx-me.position.x,nz-me.position.z);me.position.set(nx,hAt(nx,nz),nz);if(velocity.length()>.1){const angle=Math.atan2(-velocity.x,-velocity.y);me.rotation.y+=Math.atan2(Math.sin(angle-me.rotation.y),Math.cos(angle-me.rotation.y))*(1-Math.exp(-14*dt));}if(walked>.65){step();walked=0;}}updateSurvival(dt);animate(me,velocity.length(),dt);updateCamera(dt);for(const g of players.values()){const d=g.position.distanceTo(g.userData.target);g.position.lerp(g.userData.target,1-Math.exp(-12*dt));g.rotation.y+=Math.atan2(Math.sin(g.userData.ry-g.rotation.y),Math.cos(g.userData.ry-g.rotation.y))*(1-Math.exp(-12*dt));animate(g,Math.min(d*12,6),dt);}snowfall.position.copy(me.position);for(let i=0;i<flakes.length;i+=3){flakes[i]+=dt*(storm?11:2);flakes[i+1]-=dt*(storm?5:1.5);if(flakes[i]>30)flakes[i]=-30;if(flakes[i+1]<-20)flakes[i+1]=30;}snowGeo.attributes.position.needsUpdate=true;scene.fog.density=storm?.045:run?.003:.0013;
-if(active){send+=dt;if(send>.075&&socket.connected){socket.emit('move',{x:me.position.x,z:me.position.z,ry:me.rotation.y});send=0;}hudTime+=dt;if(hudTime>.2){hudTime=0;mapPos($('#you'));mapPos($('#youBig'));const near=POIS.reduce((a,b)=>Math.hypot(me.position.x-a.x,me.position.z-a.z)<Math.hypot(me.position.x-b.x,me.position.z-b.z)?a:b);$('#place').textContent=`${near.label} · ${Math.round(Math.hypot(me.position.x-near.x,me.position.z-near.z))} м`;if(socket.connected)$('#online').textContent=`${players.size+1} в экспедиции`;$('#position').textContent=`Высота DEM ${Math.round(baseHeight(me.position.x,me.position.z))} м · ${paused?'Пауза · нажмите на сцену':document.pointerLockElement===canvas?'Esc — пауза':'Мышь с зажатой кнопкой — обзор'}`;}}}renderer.render(scene,camera);}
-const camp={x:P.cedar.x-16,z:P.cedar.z+12};
+if(active){send+=dt;if(send>.075&&socket.connected){socket.emit('move',{x:me.position.x,z:me.position.z,ry:me.rotation.y});send=0;}hudTime+=dt;if(hudTime>.2){hudTime=0;mapPos($('#you'));mapPos($('#youBig'));const near=POIS.reduce((a,b)=>Math.hypot(me.position.x-a.x,me.position.z-a.z)<Math.hypot(me.position.x-b.x,me.position.z-b.z)?a:b);$('#place').textContent=`${near.label} · ${Math.round(Math.hypot(me.position.x-near.x,me.position.z-near.z))} м`;if(socket.connected)$('#online').textContent=`${players.size+1} в экспедиции`;$('#position').textContent=`Высота DEM ${Math.round(baseHeight(me.position.x,me.position.z))} м · ${paused?'Пауза · нажмите на сцену':document.pointerLockElement===canvas?'Esc — пауза':'Мышь с зажатой кнопкой — обзор'}`;}}}ambience.update(dt,{active:active&&!paused&&!mapOpen&&!finished,storm,speed:velocity.length(),fire:run&&fireSeconds>0?Math.max(0,1-Math.hypot(me.position.x-CAMP.x,me.position.z-CAMP.z)/18):0});renderer.render(scene,camera);}
+const camp=CAMP;
 const fireGroup=new THREE.Group();scene.add(fireGroup);
 const ember=mesh(new THREE.ConeGeometry(.38,.85,5),new THREE.MeshBasicMaterial({color:0xffb54e}),fireGroup,0,.55);
 const fireLight=new THREE.PointLight(0xffa347,0,24,1.3);fireGroup.add(fireLight);fireLight.position.y=1.1;
 for(let i=0;i<5;i++){const log=mesh(new THREE.CylinderGeometry(.1,.13,1.2,5),wood,fireGroup,0,.12);log.rotation.z=Math.PI/2;log.rotation.y=i*Math.PI/5;}
 function startRun(){
+ ambience.enable().then(updateSoundButton);$('#sound').hidden=false;
  firstPerson=true;me.visible=false;finished=false;paused=false;pitch=.08;
  if($('#mode').value!=='survival')return;
  run=newRun();record(run,'Выход от лесного кострища. Цель — верхнее укрытие.');
@@ -77,15 +81,18 @@ function finishRun(){
  $('#protocol').hidden=false;
 }
 $('#lightFire').onclick=()=>{autoKindle=!autoKindle;paused=false;};
+function updateSoundButton(){$('#sound').textContent=ambience.enabled?'Звук: вкл':'Звук: выкл';$('#sound').setAttribute('aria-pressed',String(ambience.enabled));}
+$('#sound').onclick=async()=>{if(ambience.enabled)ambience.mute();else await ambience.enable();updateSoundButton();};
 $('#again').onclick=()=>location.reload();
 function updateSurvival(dt){
  if(!run||finished)return;
+ fireSeconds=Math.max(0,(fireDeadline-performance.now())/1000);
  const nearFire=Math.hypot(me.position.x-camp.x,me.position.z-camp.z)<5;
  if(!paused&&!mapOpen){
    const oldStorm=storm;storm=run.elapsed>120&&Math.floor((run.elapsed-120)/150)%2===0;
    if(storm!==oldStorm)record(run,storm?'Видимость упала. Началась метель.':'Ветер ослаб.');
-   fireSeconds=Math.max(0,fireSeconds-dt);
-   if(nearFire&&(keys.KeyE||autoKindle)&&fireSeconds===0&&velocity.length()<.3){lightingFire+=dt;const needed=3+(100-run.hands)*.09;if(lightingFire>=needed){fireSeconds=90;lightingFire=0;autoKindle=false;record(run,'Разожжён костёр. Остановка ради тепла и рук.');}}
+
+   if(nearFire&&(keys.KeyE||autoKindle)&&fireSeconds===0&&velocity.length()<.3&&socket.connected&&!awaitingFire){if(lightingFire===0)socket.emit('kindle');lightingFire+=dt;const needed=3.2+(100-run.hands)*.09;if(lightingFire>=needed){socket.emit('ignite');awaitingFire=true;setTimeout(()=>awaitingFire=false,2000);lightingFire=0;autoKindle=false;}}
    else {lightingFire=0;autoKindle=false;}
    const companion=[...players.values()].some(g=>g.position.distanceTo(me.position)<5);
    tickRun(run,dt,{moving:velocity.length()>.3,storm,fire:nearFire&&fireSeconds>0,companion,sheltered:baseHeight(me.position.x,me.position.z)<735,goal:Math.hypot(me.position.x-P.tent.x,me.position.z-P.tent.z)<12});
@@ -97,7 +104,7 @@ function updateSurvival(dt){
  const angle=Math.atan2(P.tent.x-me.position.x,P.tent.z-me.position.z)-yaw+Math.PI;
  const bearing=Math.atan2(Math.sin(angle),Math.cos(angle));
  $('#runDirection').textContent=`${Math.abs(bearing)<.3?'↑':bearing>0?'←':'→'} Верхнее укрытие · ${Math.round(Math.hypot(me.position.x-P.tent.x,me.position.z-P.tent.z))} м`;
- $('#runHint').textContent=paused?'Пауза · нажмите на сцену':nearFire?(fireSeconds>0?`У огня · ещё ${Math.ceil(fireSeconds)} с`:lightingFire>0?'Разжигаете… держите E':'Кострище · стойте и удерживайте E'):run.heat<30?'Холод мешает думать. Вернитесь к огню.':storm?'Метель. Держитесь рядом.':'Свет уходит. Выбирайте путь.';
+ $('#runHint').textContent=!socket.connected?'Связь потеряна · общий костёр недоступен':paused?'Пауза · нажмите на сцену':nearFire?(fireSeconds>0?`У огня · ещё ${Math.ceil(fireSeconds)} с`:awaitingFire?'Проверяем костёр…':lightingFire>0?(autoKindle?'Разжигаете… не двигайтесь':'Разжигаете… держите E'):'Кострище · стойте и удерживайте E'):run.heat<30?'Холод мешает думать. Вернитесь к огню.':storm?'Метель. Держитесь рядом.':'Свет уходит. Выбирайте путь.';
  for(const key of ['heat','hands','clarity'])$('#'+key).value=run[key];
  $('#vitals').style.opacity=nearFire||run.heat<40?'1':'.35';
  $('#coldVeil').style.opacity=String((100-run.heat)/180);

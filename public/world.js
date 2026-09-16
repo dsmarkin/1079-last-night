@@ -16,3 +16,5 @@ export const P=Object.fromEntries(POIS.map(p=>[p.id,p]));
 export const creek=[ll(61.7646,59.4544),P.den,P.ravine,ll(61+45/60+55.66/3600,59+27/60+13.36/3600),ll(61+45/60+59.40/3600,59+27/60+15.40/3600)];
 export function movement(f,r,yaw){const n=Math.hypot(f,r)||1;return {x:(-Math.sin(yaw)*f+Math.cos(yaw)*r)/n,z:(-Math.cos(yaw)*f-Math.sin(yaw)*r)/n};}
 export function sample(data,x,z){const px=Math.max(0,Math.min(255,(x/SIZE+.5)*256-.5)),py=Math.max(0,Math.min(255,(z/SIZE+.5)*256-.5));const a=Math.floor(px),b=Math.floor(py),c=Math.min(255,a+1),d=Math.min(255,b+1),u=px-a,v=py-b;return (data[b*256+a]*(1-u)+data[b*256+c]*u)*(1-v)+(data[d*256+a]*(1-u)+data[d*256+c]*u)*v;}
+// Fictional camp for the survival route; not a historical fire-site coordinate.
+export const CAMP={x:P.cedar.x-16,z:P.cedar.z+12};
