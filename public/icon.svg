@@ -1,0 +1,56 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128">
+  <!-- 1079 · Character 01: low-poly winter hiker bust. Original icon drawn from the project's concept sheet. -->
+  <defs>
+    <clipPath id="r"><rect x="0" y="0" width="128" height="128" rx="26"/></clipPath>
+  </defs>
+  <g clip-path="url(#r)">
+    <!-- pale snow-paper background with cold facets -->
+    <rect width="128" height="128" fill="#c7d0d5"/>
+    <polygon points="0,0 128,0 128,54 0,66" fill="#d0d8dc"/>
+    <polygon points="0,66 128,54 128,128 0,128" fill="#bdc7cd"/>
+    <polygon points="0,98 128,86 128,128 0,128" fill="#b2bdc4"/>
+
+    <!-- shoulders / anorak -->
+    <polygon points="2,128 16,94 46,80 64,86 82,80 112,94 126,128" fill="#5a6b7a"/>
+    <polygon points="2,128 16,94 46,80 38,128" fill="#4d5d6b"/>
+    <polygon points="82,80 112,94 126,128 90,128" fill="#64768b"/>
+    <polygon points="46,80 64,86 82,80 90,128 38,128" fill="#58697a"/>
+    <polygon points="30,104 98,100 100,108 30,112" fill="#4e5e6c"/>
+    <!-- placket -->
+    <polygon points="61,86 67,86 68,128 60,128" fill="#495868"/>
+    <!-- rucksack straps + buckles -->
+    <polygon points="32,90 44,82 52,128 40,128" fill="#6a5340"/>
+    <polygon points="96,90 84,82 76,128 88,128" fill="#6a5340"/>
+    <polygon points="41,99 51,98 52,106 42,107" fill="#98a3a0"/>
+    <polygon points="87,99 77,98 76,106 86,107" fill="#98a3a0"/>
+    <polygon points="44,101 49,100.5 49.5,104 44.5,104.5" fill="#6a5340"/>
+    <polygon points="84,101 79,100.5 78.5,104 83.5,104.5" fill="#6a5340"/>
+
+    <!-- hood: outer, with a small peak -->
+    <polygon points="64,6 76,10 94,22 104,52 96,86 64,94 32,86 24,52 34,22 52,10" fill="#5e6f80"/>
+    <polygon points="64,6 76,10 94,22 78,30 64,26 50,30 34,22 52,10" fill="#6d8091"/>
+    <polygon points="94,22 104,52 90,48 78,30" fill="#66788a"/>
+    <polygon points="34,22 24,52 38,48 50,30" fill="#56687a"/>
+    <polygon points="24,52 38,48 32,86 42,80" fill="#4f6072"/>
+    <polygon points="104,52 90,48 96,86 86,80" fill="#5a6b7c"/>
+    <polygon points="32,86 42,80 64,84 64,94" fill="#546576"/>
+    <polygon points="96,86 86,80 64,84 64,94" fill="#5c6d7e"/>
+    <!-- hood opening: dark lining -->
+    <polygon points="64,24 82,34 88,60 80,84 64,88 48,84 40,60 46,34" fill="#222e36"/>
+    <polygon points="64,24 82,34 88,60 64,54 40,60 46,34" fill="#2b3943"/>
+    <!-- knit cap -->
+    <polygon points="64,30 78,39 77,46 64,43 51,46 50,39" fill="#8b8371"/>
+    <polygon points="64,30 78,39 64,43 50,39" fill="#9a917f"/>
+    <!-- forehead + eyes (scarf hides the rest) -->
+    <polygon points="64,41 76,46 76,62 64,64 52,62 52,46" fill="#b48f78"/>
+    <polygon points="64,41 76,46 64,52 52,46" fill="#c29d86"/>
+    <polygon points="55,53 60,53.5 60,57 55,56.5" fill="#262b30"/>
+    <polygon points="68,53.5 73,53 73,56.5 68,57" fill="#262b30"/>
+    <!-- scarf: wraps up to the nose -->
+    <polygon points="42,60 64,64 86,60 90,80 64,92 38,80" fill="#bfb296"/>
+    <polygon points="42,60 64,64 64,92 38,80" fill="#ae9f82"/>
+    <polygon points="86,60 90,80 64,92 64,64" fill="#cbc0a6"/>
+    <polygon points="48,70 64,74 80,70 82,80 64,86 46,80" fill="#b7a98c"/>
+    <polygon points="52,60 64,58 76,60 78,66 64,70 50,66" fill="#c8bca1"/>
+  </g>
+</svg>

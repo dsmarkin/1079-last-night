@@ -7,3 +7,5 @@ select{display:block;width:100%;padding:10px;background:#152c36;color:#edf3f5;bo
 .survival #survivalHud{padding:22px;background:linear-gradient(110deg,#0b1b2aee,#0b1b2a88);border-left:1px solid #9baebc55;text-shadow:none;left:20px;bottom:20px}#lightFire{pointer-events:auto;background:#ab784b;color:#fff;font-size:12px;padding:7px 12px;margin-bottom:8px}.card{max-height:95vh;overflow:auto}
 
 #sound{position:fixed;top:24px;right:24px;z-index:5;background:#152c3bcc;color:#d8e4eb;font-size:11px}body:not(.survival) #sound{top:240px}
+
+.card .badge{display:block;width:56px;height:56px;margin-bottom:14px;border-radius:12px;box-shadow:0 4px 14px #0006}
