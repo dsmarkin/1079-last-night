@@ -1,14 +1,16 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createRun,addPlayer,setOffline,movePlayer,beginKindling,stopKindling,stepRun,snapshot,kindleSeconds,GRACE_MS,START} from '../server/run.js';
-import {heightAt,decodePng} from '../server/terrain.js';
+import {heightAt,loadHeights} from '../server/terrain.js';
 import {P,CAMP} from '../public/world.js';
 import {NIGHT_SECONDS} from '../public/survival.js';
 
 const advance=(run,from,seconds,step=250)=>{let t=from;for(let i=0;i<seconds*1000/step;i++){t+=step;stepRun(run,t);}return t;};
 
-test('server DEM matches the client decoding and puts the camp below the tree line',()=>{
- assert.throws(()=>decodePng(Buffer.from('nope')));
+test('server height grid loads, matches known elevations and puts the camp below the tree line',()=>{
+ assert.throws(()=>loadHeights(new URL('../package.json',import.meta.url)));
+ const summit=heightAt(P.summit.x,P.summit.z),saddle=heightAt(P.saddle.x,P.saddle.z);
+ assert.ok(Math.abs(summit-1096.7)<5,`summit ${summit}`);assert.ok(Math.abs(saddle-792)<4,`saddle ${saddle}`);
  const camp=heightAt(CAMP.x,CAMP.z),tent=heightAt(P.tent.x,P.tent.z);
  assert.ok(camp>600&&camp<735,`camp ${camp}`);assert.ok(tent>camp,`tent ${tent}`);
 });
